@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f4f7f8">
+  <title>Calidad del aire · Sevilla</title>
+  <style>
+    :root {
+      --ink: #172b3a;
+      --muted: #71808c;
+      --line: #e8edf0;
+      --surface: #ffffff;
+      --bg: #f3f6f7;
+      --accent: #287f70;
+      --good: #20a779;
+      --moderate: #e5ae35;
+      --sensitive: #e8873c;
+      --poor: #dc5c55;
+      --verypoor: #9561bd;
+      --hazard: #7c354d;
+      --shadow: 0 14px 40px rgba(29, 54, 68, .07);
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body {
+      margin: 0;
+      padding: 22px;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .widget { width: min(100%, 980px); margin: 0 auto; }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 16px; margin-bottom: 18px;
+    }
+    .eyebrow {
+      margin: 0 0 7px; color: var(--accent); font-size: 11px;
+      font-weight: 800; letter-spacing: .16em;
+    }
+    h1 { margin: 0; font-size: clamp(23px, 4vw, 31px); letter-spacing: -.045em; }
+    .location { display: flex; align-items: center; gap: 7px; margin-top: 7px; color: var(--muted); font-size: 13px; }
+    .location svg { width: 15px; height: 15px; color: var(--accent); }
+    .refresh {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px;
+      background: white; color: var(--ink); font: inherit; font-size: 12px;
+      font-weight: 700; cursor: pointer; transition: .2s ease;
+    }
+    .refresh:hover { border-color: #b8d4ce; transform: translateY(-1px); }
+    .refresh:disabled { opacity: .55; cursor: wait; transform: none; }
+    .refresh svg { width: 15px; height: 15px; }
+    .refresh.spinning svg { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .panel {
+      background: var(--surface); border: 1px solid rgba(225,233,236,.9);
+      border-radius: 22px; box-shadow: var(--shadow);
+    }
+    .hero {
+      display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(230px, .85fr);
+      gap: 22px; padding: clamp(20px, 4vw, 34px); overflow: hidden;
+      position: relative;
+    }
+    .hero:after {
+      content: ""; position: absolute; width: 270px; height: 270px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(32,167,121,.09), transparent 68%);
+      right: -100px; top: -120px; pointer-events: none;
+    }
+    .section-label { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .status-row { display: flex; align-items: center; gap: 10px; margin: 15px 0 8px; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 5px rgba(32,167,121,.12); }
+    .status { font-size: clamp(20px, 3vw, 27px); font-weight: 800; letter-spacing: -.04em; }
+    .summary { max-width: 440px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
+    .aqi-meta { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 9px 18px; color: var(--muted); font-size: 11px; }
+    .aqi-meta strong { color: var(--ink); font-weight: 700; }
+    .gauge-wrap { display: flex; align-items: center; justify-content: center; min-height: 210px; }
+    .gauge { width: min(100%, 250px); position: relative; }
+    .gauge svg { display: block; width: 100%; overflow: visible; }
+    .gauge-track, .gauge-value { fill: none; stroke-width: 13; stroke-linecap: round; }
+    .gauge-track { stroke: #edf1f2; }
+    .gauge-value { stroke: var(--good); stroke-dasharray: 283; stroke-dashoffset: 283; transition: stroke-dashoffset 1s ease, stroke .4s ease; }
+    .gauge-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 18px; }
+    .aqi-number { font-size: 61px; line-height: 1; font-weight: 800; letter-spacing: -.07em; }
+    .aqi-caption { margin-top: 7px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .content-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 16px; margin-top: 16px; }
+    .block { padding: 22px; }
+    .block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 17px; }
+    h2 { margin: 0; font-size: 15px; letter-spacing: -.02em; }
+    .subhead { color: var(--muted); font-size: 11px; }
+    .pollutants { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .pollutant {
+      padding: 13px 12px; background: #f7f9fa; border: 1px solid #eff2f3;
+      border-radius: 14px; min-width: 0;
+    }
+    .pollutant-top { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+    .pollutant-name { font-size: 12px; font-weight: 800; }
+    .pollutant-symbol { color: var(--muted); font-size: 10px; }
+    .pollutant-value { margin-top: 11px; font-size: 21px; font-weight: 800; letter-spacing: -.04em; overflow-wrap: anywhere; }
+    .pollutant-unit { color: var(--muted); font-size: 10px; margin-top: 2px; }
+    .mini-track { height: 4px; margin-top: 12px; border-radius: 9px; background: #e6ecee; overflow: hidden; }
+    .mini-fill { height: 100%; width: 0; background: var(--accent); border-radius: inherit; transition: width .7s ease; }
+    .recommendation {
+      height: calc(100% - 34px); min-height: 155px; padding: 17px;
+      border-radius: 16px; background: #f2f8f6; border: 1px solid #e4f0ec;
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .rec-icon {
+      display: grid; place-items: center; width: 36px; height: 36px;
+      border-radius: 12px; color: var(--accent); background: white;
+    }
+    .rec-icon svg { width: 19px; height: 19px; }
+    .rec-title { margin: 15px 0 6px; font-size: 14px; font-weight: 800; }
+    .rec-text { margin: 0; color: #62756f; font-size: 12px; line-height: 1.65; }
+    .chart-panel { margin-top: 16px; padding: 22px; }
+    .chart-wrap { height: 150px; position: relative; }
+    canvas { display: block; width: 100%; height: 100%; }
+    .chart-labels { display: flex; justify-content: space-between; color: #9aa6ad; font-size: 10px; margin-top: 6px; }
+    .footer {
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+      margin: 14px 3px 0; color: #8a989f; font-size: 10px; line-height: 1.5;
+    }
+    .footer a { color: var(--accent); text-decoration: none; }
+    .message {
+      display: none; margin: 14px 0 0; padding: 11px 14px; border-radius: 12px;
+      color: #8b4a35; background: #fff3ed; font-size: 12px; line-height: 1.5;
+    }
+    .message.show { display: block; }
+    .loading { opacity: .55; pointer-events: none; }
+    .skeleton { color: #aab5bb; }
+    @media (max-width: 680px) {
+      body { padding: 13px; }
+      .hero { grid-template-columns: 1fr; gap: 4px; }
+      .gauge-wrap { min-height: 185px; }
+      .gauge { width: 220px; }
+      .content-grid { grid-template-columns: 1fr; }
+      .recommendation { min-height: 155px; }
+    }
+    @media (max-width: 420px) {
+      .topbar { align-items: flex-start; }
+      .refresh { padding: 9px; font-size: 0; }
+      .refresh svg { width: 17px; height: 17px; }
+      .pollutants { grid-template-columns: repeat(2, 1fr); }
+      .block, .chart-panel { padding: 17px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *:before, *:after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="widget" id="air-widget">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">SEVILLA · ANDALUCÍA</p>
+        <h1>Calidad del aire</h1>
+        <div class="location">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          Sevilla, España
+        </div>
+      </div>
+      <button class="refresh" id="refresh" type="button" aria-label="Actualizar datos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12.4-3"/></svg>
+        Actualizar
+      </button>
+    </header>
+
+    <section class="panel hero" aria-live="polite">
+      <div>
+        <div class="section-label">Índice de calidad del aire · EE. UU. (US AQI)</div>
+        <div class="status-row">
+          <span class="status-dot" id="status-dot"></span>
+          <div class="status" id="status">Cargando datos…</div>
+        </div>
+        <p class="summary" id="summary">Consultando las últimas mediciones disponibles para Sevilla.</p>
+        <div class="aqi-meta">
+          <span>Dato horario: <strong id="data-time">—</strong></span>
+          <span>Actualizado: <strong id="updated-time">—</strong></span>
+        </div>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge">
+          <svg viewBox="0 0 220 150" role="img" aria-label="Indicador del índice de calidad del aire">
+            <path class="gauge-track" d="M 24 126 A 86 86 0 0 1 196 126"/>
+            <path class="gauge-value" id="gauge-value" d="M 24 126 A 86 86 0 0 1 196 126"/>
+          </svg>
+          <div class="gauge-center">
+            <div class="aqi-number" id="aqi">—</div>
+            <div class="aqi-caption">US AQI</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="content-grid">
+      <section class="panel block">
+        <div class="block-head">
+          <h2>Contaminantes</h2>
+          <span class="subhead">Concentración en el aire</span>
+        </div>
+        <div class="pollutants" id="pollutants">
+          <div class="pollutant skeleton">Cargando…</div>
+        </div>
+      </section>
+
+      <section class="panel block">
+        <div class="block-head"><h2>¿Qué significa?</h2></div>
+        <div class="recommendation" id="recommendation">
+          <div class="rec-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4m0-12.8L17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>
+          </div>
+          <div>
+            <div class="rec-title" id="rec-title">Esperando mediciones</div>
+            <p class="rec-text" id="rec-text">La recomendación aparecerá cuando se reciban los datos.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel chart-panel">
+      <div class="block-head">
+        <h2>Evolución durante las últimas horas</h2>
+        <span class="subhead">US AQI · por hora</span>
+      </div>
+      <div class="chart-wrap"><canvas id="history-chart" aria-label="Gráfico de evolución horaria del índice US AQI"></canvas></div>
+      <div class="chart-labels" id="chart-labels"><span>—</span><span>—</span><span>—</span><span>—</span><span>—</span></div>
+    </section>
+
+    <div class="message" id="message" role="status"></div>
+    <footer class="footer">
+      <span>Datos horarios de Open-Meteo · Punto de referencia: centro de Sevilla.</span>
+      <span>Índice utilizado: US AQI. <a href="https://air-quality-api.open-meteo.com/" target="_blank" rel="noopener">Fuente y metodología</a></span>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const LAT = 37.3891;
+      const LON = -5.9845;
+      const API = "https://air-quality-api.open-meteo.com/v1/air-quality";
+      const params = new URLSearchParams({
+        latitude: LAT,
+        longitude: LON,
+        hourly: "us_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,sulphur_dioxide,carbon_monoxide",
+        past_days: "1",
+        forecast_days: "1",
+        timezone: "Europe/Madrid"
+      });
+      const $ = id => document.getElementById(id);
+      const pollutantInfo = [
+        { key: "pm2_5", name: "PM2.5", description: "Partículas finas", unit: "µg/m³", max: 35 },
+        { key: "pm10", name: "PM10", description: "Partículas", unit: "µg/m³", max: 100 },
+        { key: "nitrogen_dioxide", name: "NO₂", description: "Dióxido de nitrógeno", unit: "µg/m³", max: 100 },
+        { key: "ozone", name: "O₃", description: "Ozono", unit: "µg/m³", max: 120 },
+        { key: "sulphur_dioxide", name: "SO₂", description: "Dióxido de azufre", unit: "µg/m³", max: 75 },
+        { key: "carbon_monoxide", name: "CO", description: "Monóxido de carbono", unit: "µg/m³", max: 10000 }
+      ];
+
+      let lastData = null;
+      let resizeTimer = null;
+
+      function category(value) {
+        if (value <= 50) return {
+          label: "Buena", color: "#20a779",
+          summary: "La calidad del aire es satisfactoria y la contaminación presenta poco o ningún riesgo.",
+          title: "Buen momento para salir",
+          advice: "Puedes realizar actividades habituales al aire libre. La calidad del aire supone un riesgo bajo para la población."
+        };
+        if (value <= 100) return {
+          label: "Moderada", color: "#d5a32f",
+          summary: "La calidad del aire es aceptable, aunque puede afectar a personas excepcionalmente sensibles.",
+          title: "Actividad normal",
+          advice: "La mayoría de las personas puede seguir con su rutina. Si notas molestias, reduce el ejercicio intenso al aire libre."
+        };
+        if (value <= 150) return {
+          label: "Poco saludable para grupos sensibles", color: "#e8873c",
+          summary: "Algunos grupos sensibles pueden experimentar efectos en la salud.",
+          title: "Precaución para grupos sensibles",
+          advice: "Niños, personas mayores y personas con enfermedades respiratorias o cardiovasculares deberían limitar el ejercicio intenso en exteriores."
+        };
+        if (value <= 200) return {
+          label: "Mala", color: "#dc5c55",
+          summary: "La población puede empezar a notar efectos en la salud; los grupos sensibles pueden sufrir efectos más graves.",
+          title: "Reduce la exposición",
+          advice: "Conviene limitar las actividades prolongadas o intensas al aire libre. Los grupos sensibles deberían evitarlas."
+        };
+        if (value <= 300) return {
+          label: "Muy mala", color: "#9561bd",
+          summary: "Alerta sanitaria: aumenta el riesgo de efectos para la salud de toda la población.",
+          title: "Evita el esfuerzo exterior",
+          advice: "Evita la actividad física al aire libre y reduce el tiempo de exposición. Presta atención a las recomendaciones de las autoridades."
+        };
+        return {
+          label: "Peligrosa", color: "#7c354d",
+          summary: "Situación de emergencia sanitaria. Toda la población puede verse afectada.",
+          title: "Permanece en interiores",
+          advice: "Evita salir al exterior salvo que sea imprescindible. Sigue las indicaciones de las autoridades sanitarias y ambientales."
+        };
+      }
+
+      function formatNumber(value) {
+        if (!Number.isFinite(value)) return "—";
+        return value < 10 ? value.toFixed(1) : Math.round(value).toString();
+      }
+
+      function dateLabel(dateString) {
+        const date = new Date(dateString);
+        if (Number.isNaN(date.getTime())) return "—";
+        return new Intl.DateTimeFormat("es-ES", {
+          day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+          timeZone: "Europe/Madrid"
+        }).format(date);
+      }
+
+      function latestValidIndex(times, values) {
+        const now = Date.now();
+        for (let i = times.length - 1; i >= 0; i--) {
+          const time = new Date(times[i]).getTime();
+          if (time <= now && Number.isFinite(values[i])) return i;
+        }
+        for (let i = values.length - 1; i >= 0; i--) {
+          if (Number.isFinite(values[i])) return i;
+        }
+        return -1;
+      }
+
+      function renderPollutants(hourly, index) {
+        $("pollutants").innerHTML = pollutantInfo.map(item => {
+          const value = hourly[item.key] && hourly[item.key][index];
+          const valid = Number.isFinite(value);
+          const width = valid ? Math.max(2, Math.min(100, value / item.max * 100)) : 0;
+          return `<article class="pollutant">
+            <div class="pollutant-top"><span class="pollutant-name">${item.name}</span><span class="pollutant-symbol">●</span></div>
+            <div class="pollutant-value">${valid ? formatNumber(value) : "—"}</div>
+            <div class="pollutant-unit">${item.unit} · ${item.description}</div>
+            <div class="mini-track"><div class="mini-fill" style="width:${width}%"></div></div>
+          </article>`;
+        }).join("");
+      }
+
+      function renderChart(times, values) {
+        const canvas = $("history-chart");
+        const rect = canvas.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const width = Math.max(280, rect.width);
+        const height = Math.max(120, rect.height);
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        const ctx = canvas.getContext("2d");
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, width, height);
+
+        const valid = values.map((v, i) => ({ v, t: times[i] })).filter(p => Number.isFinite(p.v)).slice(-18);
+        if (valid.length < 2) {
+          ctx.fillStyle = "#87959c"; ctx.font = "12px system-ui";
+          ctx.fillText("No hay suficientes datos horarios para mostrar la evolución.", 4, 25);
+          $("chart-labels").innerHTML = "<span>Sin datos suficientes</span>";
+          return;
+        }
+
+        const pad = { left: 8, right: 8, top: 12, bottom: 15 };
+        const max = Math.max(50, ...valid.map(p => p.v)) * 1.12;
+        const min = 0;
+        const x = i => pad.left + i * (width - pad.left - pad.right) / (valid.length - 1);
+        const y = v => height - pad.bottom - (v - min) / (max - min) * (height - pad.top - pad.bottom);
+
+        ctx.strokeStyle = "#edf1f2"; ctx.lineWidth = 1;
+        for (let i = 0; i < 3; i++) {
+          const yy = pad.top + i * (height - pad.top - pad.bottom) / 2;
+          ctx.beginPath(); ctx.moveTo(pad.left, yy); ctx.lineTo(width - pad.right, yy); ctx.stroke();
+        }
+
+        const gradient = ctx.createLinearGradient(0, pad.top, 0, height);
+        gradient.addColorStop(0, "rgba(40,127,112,.20)");
+        gradient.addColorStop(1, "rgba(40,127,112,0)");
+        ctx.beginPath();
+        valid.forEach((p, i) => i ? ctx.lineTo(x(i), y(p.v)) : ctx.moveTo(x(i), y(p.v)));
+        ctx.lineTo(x(valid.length - 1), height - pad.bottom);
+        ctx.lineTo(x(0), height - pad.bottom);
+        ctx.closePath(); ctx.fillStyle = gradient; ctx.fill();
+
+        ctx.beginPath();
+        valid.forEach((p, i) => i ? ctx.lineTo(x(i), y(p.v)) : ctx.moveTo(x(i), y(p.v)));
+        ctx.strokeStyle = "#287f70"; ctx.lineWidth = 2.5; ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.stroke();
+
+        const last = valid[valid.length - 1];
+        ctx.beginPath(); ctx.arc(x(valid.length - 1), y(last.v), 4, 0, Math.PI * 2);
+        ctx.fillStyle = "#287f70"; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+
+        const labelIndexes = [0, Math.floor((valid.length - 1) / 3), Math.floor(2 * (valid.length - 1) / 3), valid.length - 1];
+        $("chart-labels").innerHTML = labelIndexes.map(i => {
+          const d = new Date(valid[i].t);
+          return `<span>${new Intl.DateTimeFormat("es-ES", {hour:"2-digit", minute:"2-digit", timeZone:"Europe/Madrid"}).format(d)}</span>`;
+        }).join("");
+      }
+
+      function render(data) {
+        const hourly = data.hourly || {};
+        const times = hourly.time || [];
+        const values = hourly.us_aqi || [];
+        const index = latestValidIndex(times, values);
+        if (index < 0) throw new Error("La fuente no ha devuelto un índice de calidad del aire válido.");
+
+        const aqi = values[index];
+        const info = category(aqi);
+        $("aqi").textContent = Math.round(aqi);
+        $("status").textContent = info.label;
+        $("status").style.color = info.color;
+        $("status-dot").style.background = info.color;
+        $("status-dot").style.boxShadow = `0 0 0 5px ${info.color}22`;
+        $("summary").textContent = info.summary;
+        $("rec-title").textContent = info.title;
+        $("rec-text").textContent = info.advice;
+        $("recommendation").style.background = `${info.color}12`;
+        $("recommendation").style.borderColor = `${info.color}30`;
+
+        const gauge = $("gauge-value");
+        const fraction = Math.min(1, Math.max(0, aqi / 300));
+        gauge.style.stroke = info.color;
+        gauge.style.strokeDashoffset = 283 * (1 - fraction);
+
+        $("data-time").textContent = dateLabel(times[index]);
+        $("updated-time").textContent = new Intl.DateTimeFormat("es-ES", {
+          hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit",
+          timeZone: "Europe/Madrid"
+        }).format(new Date());
+        renderPollutants(hourly, index);
+        renderChart(times.slice(0, index + 1), values.slice(0, index + 1));
+        $("message").classList.remove("show");
+        lastData = data;
+      }
+
+      async function loadData() {
+        const button = $("refresh");
+        button.disabled = true;
+        button.classList.add("spinning");
+        $("air-widget").classList.add("loading");
+        try {
+          const response = await fetch(`${API}?${params.toString()}`, { cache: "no-store" });
+          if (!response.ok) throw new Error(`La API ha respondido con el estado ${response.status}.`);
+          const data = await response.json();
+          if (data.error) throw new Error(data.reason || "La API no ha podido completar la consulta.");
+          render(data);
+        } catch (error) {
+          const message = lastData
+            ? "No se ha podido actualizar la información. Se mantienen los últimos datos recibidos. Comprueba tu conexión e inténtalo de nuevo."
+            : "No se han podido cargar los datos de calidad del aire. Comprueba tu conexión y vuelve a intentarlo. Si has abierto el archivo directamente y el navegador bloquea la petición, prueba a publicarlo en un servidor web.";
+          $("message").textContent = message;
+          $("message").classList.add("show");
+          console.error("Error al consultar la calidad del aire:", error);
+        } finally {
+          button.disabled = false;
+          button.classList.remove("spinning");
+          $("air-widget").classList.remove("loading");
+        }
+      }
+
+      $("refresh").addEventListener("click", loadData);
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (lastData) {
+            const h = lastData.hourly;
+            const idx = latestValidIndex(h.time, h.us_aqi);
+            renderChart(h.time.slice(0, idx + 1), h.us_aqi.slice(0, idx + 1));
+          }
+        }, 150);
+      });
+
+      loadData();
+      setInterval(loadData, 15 * 60 * 1000);
+    })();
+  </script>
+
+  <!--
+    EJEMPLO PARA INSERTAR ESTE WIDGET EN OTRA WEB:
+
+    <iframe
+      src="https://TU-DOMINIO.com/index.html"
+      width="100%"
+      height="650"
+      style="border:0; border-radius:16px;"
+      loading="lazy"
+      title="Calidad del aire en Sevilla">
+    </iframe>
+
+    Nota: para embeberlo, primero publica index.html en un servidor web con HTTPS.
+  -->
+</body>
+</html>
